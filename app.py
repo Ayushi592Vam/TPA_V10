@@ -3,6 +3,7 @@ TPA Loss Run Parser — Main Entry Point
 Orchestrates all modules and renders the Streamlit UI.
 """
 
+
 import os
 from dotenv import load_dotenv, find_dotenv
 
@@ -23,8 +24,6 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-from ui.pdf_panel import render_pdf_sidebar, render_pdf_results
-
 
 from config.settings import SESSION_DEFAULTS
 from config.schemas import SCHEMAS, _CONFIG_LOAD_STATUS
@@ -34,10 +33,6 @@ from modules.storage import (
     _compute_file_sha256, _compute_sheet_sha256,
     _load_from_feature_store, _save_to_feature_store,
 )
-
-with st.sidebar:
-    render_pdf_sidebar()
-
 from ui.pdf_panel import render_pdf_sidebar, render_pdf_results
 from modules.file_utils import (
     get_sheet_names, get_sheet_dimensions,
