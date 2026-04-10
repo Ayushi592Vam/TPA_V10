@@ -68,7 +68,6 @@ from ui.dialogs import (
     show_field_history_dialog,
     show_eye_popup,
     show_cache_manager_dialog,
-    # CHANGED: import the journey dialog so we can call it from the flag check below
     show_claim_journey_dialog,
 )
 
@@ -79,15 +78,12 @@ import datetime
 # ── Page config ─────────────────────────────────────────────────────────────
 st.set_page_config(layout="wide", page_title="TPA Loss Run Parser", page_icon="🛡️")
 
-# ── Force sidebar open ───────────────────────────────────────────────────────
-st.markdown(
-    "<style> [data-testid='collapsedControl'] { display: none; } "
-    "section[data-testid='stSidebar'] { display: block !important; "
-    "min-width: 240px !important; } </style>",
-    unsafe_allow_html=True,
-)
 # ── Global CSS ───────────────────────────────────────────────────────────────
 st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
+
+# ── Sidebar — PDF extractor (must be inside `with st.sidebar` to stay visible)
+with st.sidebar:
+    render_pdf_sidebar()
 
 # ── Session state defaults ───────────────────────────────────────────────────
 for _k, _v in SESSION_DEFAULTS.items():
@@ -133,12 +129,7 @@ if st.session_state.get("_open_cache_manager"):
     st.session_state["_open_cache_manager"] = False
     show_cache_manager_dialog()
 
-# CHANGED: Persistent flag pattern for the Claim Journey dialog.
-# The flag is set by the "View Journey" button wherever it lives (claim_panel /
-# export_panel).  We check it here — at the top of every rerun — so the dialog
-# re-opens after any on_click toggle inside it, keeping the dialog alive while
-# the user expands/collapses audit rows or switches history views.
-# The flag is cleared only by the Close button inside show_claim_journey_dialog.
+# Persistent flag pattern for the Claim Journey dialog.
 if st.session_state.get("_open_journey_dialog"):
     _jd = st.session_state["_open_journey_dialog"]
     show_claim_journey_dialog(
@@ -151,11 +142,11 @@ if st.session_state.get("_open_journey_dialog"):
 
 _, col_sheet_dropdown = st.columns([6.8, 1.2])
 
-render_pdf_sidebar() 
 # ── File upload ──────────────────────────────────────────────────────────────
 uploaded = st.file_uploader("Upload Loss Run Excel/CSV", type=["xlsx", "csv"])
 
-render_pdf_results() 
+# ── PDF results (shown whether or not an Excel is loaded) ────────────────────
+render_pdf_results()
 
 if not uploaded:
     st.stop()
@@ -167,7 +158,6 @@ if "tmpdir" not in st.session_state:
 file_ext   = os.path.splitext(uploaded.name)[1]
 excel_path = os.path.join(st.session_state.tmpdir, f"input{file_ext}")
 
-# AFTER
 _upload_fingerprint = f"{uploaded.name}_{uploaded.file_id}"
 if st.session_state.get("last_uploaded") != _upload_fingerprint:
     with open(excel_path, "wb") as f:
@@ -183,22 +173,21 @@ if st.session_state.get("last_uploaded") != _upload_fingerprint:
             key.startswith("_rendered_")
             or key.startswith("_llm_fieldmap_")
             or key.startswith("_claim_dup_results_")
-            or key.startswith("mod_")       # modified field values
-            or key.startswith("edit_")      # edit mode flags
-            or key.startswith("_fv_")       # form version counters
-            or key.startswith("_v_")        # version counters
-            or key.startswith("err_")       # field error messages
-            or key.startswith("disp_")      # display widget keys
-            or key.startswith("_frozen_")   # frozen claim IDs
-            or key.startswith("chk_")       # checkbox states
-            or key.startswith("_chk_")      # checkbox snapshots
-            or key.startswith("_col_")      # cause of loss cache
-            or key.startswith("show_live_") # JSON preview toggle
-            or key.startswith("_std_json")  # export cache
-            or key.startswith("_schema_export") # schema export cache
-            or key.startswith("user_added_") # custom fields
-            or key.startswith("_claim_id_edit_warn_") # claim ID warnings
-            # CHANGED: also clear any open journey dialog state on fresh upload
+            or key.startswith("mod_")
+            or key.startswith("edit_")
+            or key.startswith("_fv_")
+            or key.startswith("_v_")
+            or key.startswith("err_")
+            or key.startswith("disp_")
+            or key.startswith("_frozen_")
+            or key.startswith("chk_")
+            or key.startswith("_chk_")
+            or key.startswith("_col_")
+            or key.startswith("show_live_")
+            or key.startswith("_std_json")
+            or key.startswith("_schema_export")
+            or key.startswith("user_added_")
+            or key.startswith("_claim_id_edit_warn_")
             or key == "_open_journey_dialog"
         ):
             del st.session_state[key]
@@ -263,8 +252,6 @@ with col_sheet_dropdown:
 
 st.markdown("<hr>", unsafe_allow_html=True)
 
-
-
 # ── Sheet cache / parse ───────────────────────────────────────────────────────
 sh_hash = sheet_hashes.get(selected_sheet, "")
 
@@ -280,7 +267,7 @@ if selected_sheet not in st.session_state.sheet_cache:
                 if isinstance(fd, dict) and "value" in fd:
                     row[fld] = {
                         "value":    fd["value"],
-                        "modified": fd["value"],   # always reset to raw on load
+                        "modified": fd["value"],
                         "excel_row": fd.get("excel_row"),
                         "excel_col": fd.get("excel_col"),
                         "original": fd.get("original", fd["value"]),
@@ -301,13 +288,10 @@ if selected_sheet not in st.session_state.sheet_cache:
                 st.stop()
             for row in data:
                 for fld, inf in row.items():
-                    # Normalise only the raw "value" — never auto-change "modified"
                     if "value" in inf and isinstance(inf["value"], str):
                         inf["value"] = normalize_str(inf["value"])
-                    # Keep modified in sync with value on fresh parse
                     inf["modified"] = inf.get("value", "")
             _title_flds = extract_title_fields(merged_meta)
-            # Merge plain-row KV metadata extracted by the parser
             from modules.schema_mapping import extract_title_fields_from_kvs
             _title_flds.update(extract_title_fields_from_kvs(title_kvs))
             data, _col_rename_log = rename_columns_to_standard(data)
@@ -395,8 +379,6 @@ if _active_schema_now and _active_schema_now in SCHEMAS and _normalized_for != _
     active["_normalized_for"] = _active_schema_now
 
 # ── LLM field-map ─────────────────────────────────────────────────────────
-# Fires whenever columns look non-standard (schema active OR plain mode).
-# Uses Guidewire as the broadest reference schema for plain-mode mapping.
 _llm_map_result = {}
 _llm_map_ran    = False
 _llm_map_count  = 0
@@ -412,9 +394,7 @@ if data:
         _llm_map_ran    = _llm_map_count > 0
         if _llm_map_ran:
             active["_llm_field_map"] = _llm_map_result
-            # Apply LLM mappings to rename column keys in data in-place
-            # so detect_claim_id and nav panel work correctly
-            _llm_mappings = _llm_map_result.get("mappings", {})
+            _llm_mappings    = _llm_map_result.get("mappings", {})
             _already_renamed = active.get("_llm_renamed", False)
             if _llm_mappings and not _already_renamed:
                 from modules.normalization import rename_columns_to_standard
@@ -457,11 +437,8 @@ if _llm_map_ran:
     render_llm_map_banner(_llm_map_result, _llm_map_count)
 
 # ── Three-column layout ───────────────────────────────────────────────────────
-curr_claim    = data[st.session_state.selected_idx]
+curr_claim = data[st.session_state.selected_idx]
 
-# Freeze claim ID in session state so editing the Claim Number field
-# doesn't change the mk/ek/xk keys mid-session and lose edited values.
-# The frozen ID is reset only when the user navigates to a different claim.
 _frozen_id_key = f"_frozen_claim_id_{selected_sheet}_{st.session_state.selected_idx}"
 if _frozen_id_key not in st.session_state:
     st.session_state[_frozen_id_key] = detect_claim_id(curr_claim)
@@ -476,13 +453,11 @@ col_nav, col_main, col_fmt = st.columns([1.2, 3.2, 1.4], gap="large")
 with col_nav:
     new_idx = render_nav_panel(data, selected_sheet)
     if new_idx is not None and new_idx != st.session_state.selected_idx:
-        # Clear frozen claim ID for the new index so it re-derives from fresh data
         _old_frozen = f"_frozen_claim_id_{selected_sheet}_{new_idx}"
         if _old_frozen in st.session_state:
             del st.session_state[_old_frozen]
         st.session_state.selected_idx = new_idx
         st.session_state.focus_field  = None
-        # CHANGED: close the journey dialog when the user navigates to a different claim
         st.session_state.pop("_open_journey_dialog", None)
         st.rerun()
 
