@@ -19,12 +19,6 @@ else:
 
 import streamlit as st
 
-st.set_page_config(
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
-
 from config.settings import SESSION_DEFAULTS
 from config.schemas import SCHEMAS, _CONFIG_LOAD_STATUS
 from modules.audit import _append_audit
@@ -85,6 +79,13 @@ import datetime
 # ── Page config ─────────────────────────────────────────────────────────────
 st.set_page_config(layout="wide", page_title="TPA Loss Run Parser", page_icon="🛡️")
 
+# ── Force sidebar open ───────────────────────────────────────────────────────
+st.markdown(
+    "<style> [data-testid='collapsedControl'] { display: none; } "
+    "section[data-testid='stSidebar'] { display: block !important; "
+    "min-width: 240px !important; } </style>",
+    unsafe_allow_html=True,
+)
 # ── Global CSS ───────────────────────────────────────────────────────────────
 st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
 
