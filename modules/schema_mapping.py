@@ -39,6 +39,43 @@ def _try_parse_date(value: str):
 
 # ── Utility ───────────────────────────────────────────────────────────────────
 
+# def detect_claim_id(row: dict, index: int | None = None) -> str:
+#     """
+#     Detects claim ID from a row dict.
+#     Works on both standardised and weird/original column names.
+#     Priority: exact keyword match → similarity match → index fallback.
+#     """
+#     keys = [
+#         "claim id", "claim_id", "claimid", "claim number", "claim no",
+#         "claim #", "claim ref", "claim reference", "file number", "record id",
+#         "claim number", "clm id", "clm no", "clm#", "loss ref",
+#     ]
+#     # Pass 1: exact keyword match on normalised column name
+#     for k, v in row.items():
+#         name = str(k).lower().replace("_", " ").strip()
+#         if any(x in name for x in keys):
+#             val = v.get("modified") or v.get("value")
+#             if val and str(val).strip():
+#                 return str(val)
+#     # Pass 2: fuzzy similarity match (catches weird names like TOTALS_AGGREGATE_ZORP
+#     # that have been LLM-mapped but original key is still used as dict key)
+#     for k, v in row.items():
+#         k_norm = str(k).lower().replace("_", " ").strip()
+#         score  = max(_str_similarity(k_norm, kw) for kw in keys)
+#         if score >= 0.55:
+#             val = v.get("modified") or v.get("value")
+#             if val and str(val).strip() and len(str(val).strip()) >= 2:
+#                 return str(val)
+#     # Pass 3: look for any column whose VALUE looks like a claim ID
+#     # (alphanumeric, 4-20 chars, contains letters)
+#     import re as _re
+#     for k, v in row.items():
+#         val = str(v.get("modified") or v.get("value") or "").strip()
+#         if _re.match(r"^[A-Z]{2,5}[-_]?[A-Z0-9]{2,15}$", val, _re.IGNORECASE):
+#             return val
+#     if index is not None:
+#         return str(index + 1)
+#     return ""
 def detect_claim_id(row: dict, index: int | None = None) -> str:
     """
     Detects claim ID from a row dict.
@@ -48,35 +85,53 @@ def detect_claim_id(row: dict, index: int | None = None) -> str:
     keys = [
         "claim id", "claim_id", "claimid", "claim number", "claim no",
         "claim #", "claim ref", "claim reference", "file number", "record id",
-        "claim number", "clm id", "clm no", "clm#", "loss ref",
+        "clm id", "clm no", "clm#", "loss ref",
+        # ── PDF-specific field names (ALL-CAPS from Azure DI extraction) ──
+        "case number", "case no", "case #", "case id",
+        "docket", "docket number", "docket no",
+        "matter number", "matter no", "matter id",
+        "filing number", "filing no",
+        "loss number", "loss no",
+        "incident number", "incident no",
+        "policy number", "policy no",
     ]
+
     # Pass 1: exact keyword match on normalised column name
     for k, v in row.items():
         name = str(k).lower().replace("_", " ").strip()
-        if any(x in name for x in keys):
+        if any(name == x or name.startswith(x) or x in name for x in keys):
             val = v.get("modified") or v.get("value")
             if val and str(val).strip():
-                return str(val)
-    # Pass 2: fuzzy similarity match (catches weird names like TOTALS_AGGREGATE_ZORP
-    # that have been LLM-mapped but original key is still used as dict key)
+                return str(val).strip()
+
+    # Pass 2: fuzzy similarity match
     for k, v in row.items():
         k_norm = str(k).lower().replace("_", " ").strip()
         score  = max(_str_similarity(k_norm, kw) for kw in keys)
         if score >= 0.55:
             val = v.get("modified") or v.get("value")
             if val and str(val).strip() and len(str(val).strip()) >= 2:
-                return str(val)
-    # Pass 3: look for any column whose VALUE looks like a claim ID
-    # (alphanumeric, 4-20 chars, contains letters)
+                return str(val).strip()
+
+    # Pass 3: look for any column whose VALUE looks like a claim/case ID
+    # (alphanumeric, 4-20 chars — e.g. "GX24-48", "CLM-2024-001")
     import re as _re
     for k, v in row.items():
         val = str(v.get("modified") or v.get("value") or "").strip()
         if _re.match(r"^[A-Z]{2,5}[-_]?[A-Z0-9]{2,15}$", val, _re.IGNORECASE):
             return val
-    if index is not None:
-        return str(index + 1)
-    return ""
 
+    # Pass 4: for PDFs, use page label as fallback (e.g. "Page 1")
+    # instead of a raw index number, which is meaningless in the nav panel
+    for k, v in row.items():
+        if str(k).lower() in ("page", "page_num", "page_label"):
+            val = v.get("modified") or v.get("value")
+            if val:
+                return f"Page {val}"
+
+    if index is not None:
+        return f"Record {index + 1}"
+    return ""
 
 def get_val(claim: dict, keys: list, default: str = "") -> str:
     """
