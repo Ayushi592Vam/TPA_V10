@@ -294,7 +294,7 @@ def _doc_type_enum_to_label(doc_type_enum) -> str | None:
 
 
 # ── Page config ──────────────────────────────────────────────────────────────
-st.set_page_config(layout="wide", page_title="TPA Loss Run Parser", page_icon="🛡️")
+st.set_page_config(layout="wide", page_title="Document Signal Hub", page_icon="🛡️")
 
 # ── Global CSS ───────────────────────────────────────────────────────────────
 st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
@@ -357,7 +357,7 @@ if st.session_state.get("_open_journey_dialog"):
 _, col_sheet_dropdown = st.columns([6.8, 1.2])
 
 # ── File upload ──────────────────────────────────────────────────────────────
-uploaded = st.file_uploader("Upload Loss Run Excel/CSV/PDF", type=["xlsx", "csv", "pdf", "docx"])
+uploaded = st.file_uploader("Upload Loss Run Excel/CSV/PDF", type=["xlsx", "csv", "pdf"])
 
 if not uploaded:
     st.stop()
