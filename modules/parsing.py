@@ -361,7 +361,8 @@ def extract_sheet_title_kvs(
 
     The sheet tab name is always stored as ``"Sheet Name"`` (source = "sheet_tab").
     """
-    scan_limit = header_row_idx if header_row_idx is not None else min(15, len(raw_rows))
+    # scan_limit = header_row_idx if header_row_idx is not None else min(15, len(raw_rows))
+    scan_limit = max(header_row_idx or 0, 15)
     found: dict = {}
 
     def _store(canonical: str, value: str, excel_row: int, excel_col: int):
@@ -447,9 +448,13 @@ def extract_sheet_title_kvs(
             label_s = str(label_val).strip()
             value_s = str(value_val).strip()
 
+            # is_label = (
+            #     label_s.endswith(":")
+            #     or _canonical_label(label_s) is not None
+            # )
             is_label = (
-                label_s.endswith(":")
-                or _canonical_label(label_s) is not None
+            ":" in label_s
+             or label_s.lower().strip().replace(":", "") in _LABEL_ALIASES
             )
             # Skip cells that are themselves inline KV pairs (already handled
             # by Pattern B); they contain ":" but don't end with ":"
@@ -462,6 +467,13 @@ def extract_sheet_title_kvs(
                     _canonical_label(label_s.rstrip(":").strip())
                     or _canonical_label(label_s)
                 )
+             ##------------------   
+                if label_s.endswith(":") and (not value_s or not str(value_s).strip()):
+                    for j in range(i + 1, len(cells)):
+                        next_val = str(cells[j][1]).strip()
+                    if next_val:
+                        value_s = next_val
+                        break
                 if canonical:
                     _store(canonical, value_s, excel_row, c_value_idx + 1)
                 i += 2
