@@ -6,6 +6,7 @@ Returns True if the settings dialog should be opened.
 
 import streamlit as st
 from modules.logo import logo_img_tag
+from modules.logo import logo_img_tag, second_logo_img_tag
 
 
 def _navbar_badge_html(active_schema: str | None, schemas: dict) -> str:
@@ -30,16 +31,49 @@ def render_topbar(schemas: dict, config_load_status: dict) -> bool:
     Returns True if the settings gear was clicked (caller should open dialog).
     """
     active_schema = st.session_state.get("active_schema", None)
-    _logo         = logo_img_tag(height=52)
+    _logo         = logo_img_tag(height=70)
     _badge        = _navbar_badge_html(active_schema, schemas)
 
     col_title, col_cache, col_gear = st.columns([10, 1, 1])
 
+    # with col_title:
+    #     st.markdown(
+    #         '<div style="'
+    #         'display:flex;align-items:center;'
+    #         'padding:10px 0 8px 0;min-height:60px;'
+    #         '">'
+    #         + _logo +
+    #         '<div style="'
+    #         'display:flex;flex-direction:column;'
+    #         'justify-content:center;gap:3px;'
+    #         '">'
+    #         '<span style="'
+    #         'font-size:17px;font-weight:700;color:#ffffff;'
+    #         'font-family:\'Segoe UI\',\'Helvetica Neue\',Arial,sans-serif;'
+    #         'letter-spacing:-0.3px;line-height:1.2;white-space:nowrap;'
+    #         '">&#128737;&nbsp; Document Signal Hub</span>'
+    #         '<span style="'
+    #         'font-size:11px;font-weight:400;color:#8888bb;'
+    #         'font-family:\'JetBrains Mono\',\'Cascadia Code\',\'Consolas\',monospace;'
+    #         'letter-spacing:0.4px;white-space:nowrap;'
+    #         '">Automated Claims Data Ingestion &amp; Multi-Schema Export Platform</span>'
+    #         '</div>'
+    #         + (_badge if _badge else '') +
+    #         '</div>',
+    #         unsafe_allow_html=True,
+    #     )
+
     with col_title:
+        _second_logo = second_logo_img_tag(height=75)
+        _center_logo_html = (
+            f'<div style="margin-left:auto;padding-right:24px;">'
+            f'{_second_logo}</div>'
+        ) if _second_logo else ''
+
         st.markdown(
             '<div style="'
             'display:flex;align-items:center;'
-            'padding:10px 0 8px 0;min-height:60px;'
+            'padding:10px 0 8px 0;min-height:60px;position:relative;'
             '">'
             + _logo +
             '<div style="'
@@ -50,20 +84,21 @@ def render_topbar(schemas: dict, config_load_status: dict) -> bool:
             'font-size:17px;font-weight:700;color:#ffffff;'
             'font-family:\'Segoe UI\',\'Helvetica Neue\',Arial,sans-serif;'
             'letter-spacing:-0.3px;line-height:1.2;white-space:nowrap;'
-            '">&#128737;&nbsp; TPA Loss Run Parser</span>'
+            '">&#128737;&nbsp; Document Signal Hub</span>'
             '<span style="'
             'font-size:11px;font-weight:400;color:#8888bb;'
             'font-family:\'JetBrains Mono\',\'Cascadia Code\',\'Consolas\',monospace;'
             'letter-spacing:0.4px;white-space:nowrap;'
             '">Automated Claims Data Ingestion &amp; Multi-Schema Export Platform</span>'
             '</div>'
-            + (_badge if _badge else '') +
-            '</div>',
+            + (_badge if _badge else '')
+            + _center_logo_html
+            + '</div>',
             unsafe_allow_html=True,
         )
 
     with col_cache:
-        st.markdown("<div style='padding-top:16px;'>", unsafe_allow_html=True)
+        st.markdown("<div style='padding-top:18px;'>", unsafe_allow_html=True)
         cache_clicked = st.button(
             "🗑", key="open_cache_btn",
             help="Clear app cache",
